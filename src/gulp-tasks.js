@@ -22,7 +22,7 @@ export default class GulpTasks extends BaseEvents {
       this.subscribeTask(id, 'less', task);
 
       this.register(id, () => task.run(), description || task.description);
-      this.register(`${id}:watch`, () => task.less.watch());
+      this.register(`${id}:watch`, () => task.watch());
     },
 
     html: (id, config, description) => {
@@ -60,7 +60,7 @@ export default class GulpTasks extends BaseEvents {
   constructor(key, config, applicationConfig) {
     super();
 
-    this.key= key;
+    this.key = key;
     this.config = config;
 
     this.applicationSrc = applicationConfig.src;
@@ -94,7 +94,7 @@ export default class GulpTasks extends BaseEvents {
     });
   }
 
-  use(gulp, components) {
+  use(gulp, components = {}) {
     if (!gulp) {
       throw new Error('gulp is not passed as argument to "use" function');
     }
