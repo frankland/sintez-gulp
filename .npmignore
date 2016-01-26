@@ -3,6 +3,4 @@
 /.idea
 /npm-debug.log
 /node_modules
-/tasks
-/gulp-tasks.js
-/log-move.js
+/src
