@@ -69,7 +69,7 @@ const normalizeOptions = options => {
   if (options.variables) {
     Object.assign(normalized, {
       variables: {
-        src: getConstantsInitializers('__constants__', options.variables),
+        src: getConstantsInitializers('__variables__', options.variables),
         tpl: '<script>%s</script>'
       }
     });
