@@ -32,7 +32,7 @@ const normalizeOptions = options => {
 
   if (options.title) {
     Object.assign(normalized, {
-      base: {
+      title: {
         src: options.title,
         tpl: '<title>%s</title>'
       }

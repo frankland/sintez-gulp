@@ -1,4 +1,4 @@
-import clean from 'gulp-clean';
+import rimraf from 'gulp-rimraf';
 
 import BaseTask from './base-task';
 
@@ -9,7 +9,7 @@ export default class CleanTask extends BaseTask {
     super(sources, gulp, (config, gulp) => {
       let dir = config.dir;
 
-      return gulp.src(dir).pipe(clean({
+      return gulp.src(dir).pipe(rimraf({
         force: true
       }));
     });
