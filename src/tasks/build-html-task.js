@@ -4,6 +4,7 @@ import rename from 'gulp-rename';
 import plumber from 'gulp-plumber';
 
 import { extname } from 'path';
+import isObject from 'lodash/isObject';
 
 import BaseTask from './base-task';
 
@@ -18,63 +19,65 @@ const getConstantsInitializers = (key, constants = {}) => {
 };
 
 
+const getBuildOptionsPresets = () => {
+  const optionsPresetsMap = new Map();
+
+  optionsPresetsMap.set('base', base => ({
+    src: base,
+    tpl: '<base href="%s">'
+  }));
+
+  optionsPresetsMap.set('title', title => ({
+    src: title,
+    tpl: '<title>%s</title>'
+  }));
+
+  optionsPresetsMap.set('css', css => ({
+    src: css,
+    tpl: '<link href="%s" rel="stylesheet"/>'
+  }));
+
+  optionsPresetsMap.set('js', js => ({
+    src: js,
+    tpl: '<script src="%s" type="text/javascript"></script>'
+  }));
+
+  optionsPresetsMap.set('favicon', favicon => ({
+    src: favicon,
+    tpl: '<link rel="icon" type="image/png" href="%s" />'
+  }));
+
+  optionsPresetsMap.set('variables', variables => ({
+    src: getConstantsInitializers('__variables__', variables),
+    tpl: '<script>%s</script>'
+  }));
+
+  return optionsPresetsMap;
+};
+
 const normalizeOptions = options => {
   let normalized = {};
 
-  if (options.base) {
-    Object.assign(normalized, {
-      base: {
-        src: options.base,
-        tpl: '<base href="%s">'
-      }
-    });
-  }
+  let presets = getBuildOptionsPresets();
 
-  if (options.title) {
-    Object.assign(normalized, {
-      title: {
-        src: options.title,
-        tpl: '<title>%s</title>'
-      }
-    });
-  }
+  for (let id of Object.keys(options)) {
+    let value = options[id];
 
-  if (options.css) {
-    Object.assign(normalized, {
-      css: {
-        src: options.css.getUrl(),
-        tpl: '<link href="%s" rel="stylesheet"/>'
-      }
-    });
-  }
+    if (presets.has(id)) {
+      let preset = presets.get(id);
 
-  if (options.js) {
-    Object.assign(normalized, {
-      js: {
-        src: options.js.getUrl(),
-        tpl: '<script src="%s" type="text/javascript"></script>'
-      }
-    });
-  }
+      Object.assign(normalized, {
+        [id]: preset(value)
+      });
+    } else if (isObject(value) && value.hasOwnProperty('tpl') && value.hasOwnProperty('src')) {
 
-  if (options.favicon) {
-    Object.assign(normalized, {
-      favicon: {
-        src: options.favicon.getUrl(),
-        tpl: '<link rel="icon" type="image/png" href="%s" />'
-      }
-    });
+      Object.assign(normalized, {
+        [id]: value
+      });
+    } else {
+      throw new Error(`Build option "${id}" is incorrect`);
+    }
   }
-
-  if (options.variables) {
-    Object.assign(normalized, {
-      variables: {
-        src: getConstantsInitializers('__variables__', options.variables),
-        tpl: '<script>%s</script>'
-      }
-    });
-  }
-
 
   return normalized;
 };
@@ -83,41 +86,58 @@ const normalizeOptions = options => {
 const compilers = new Map();
 compilers.set('.jade', options => gulpJade(options));
 
-const build = (config, gulp) => {
-  let resource = config.resource;
-
-  let src = resource.getSrc();
-  let dest = resource.getTarget();
-  let name = resource.getDestName();
-
-  let stream = gulp.src(src)
-    .pipe(plumber());
-
-  let extension = extname(src);
-  if (compilers.has(extension)) {
-    let compiler = compilers.get(extension);
-    let compileOptions = config.compileOptions;
-
-    stream = stream.pipe(compiler(compileOptions));
-  }
-
-  let buildOptions = normalizeOptions(config.buildOptions);
-
-  return stream.pipe(htmlreplace(buildOptions))
-    .pipe(rename(name))
-    .pipe(gulp.dest(dest));
-};
-
-
 export default class BuildHtmlTask extends BaseTask {
   description = `
     - build template (html / jade) into html according to provided options (global variables, base url, favicon)
     - find detailed information at https://github.com/tuchk4`;
 
   constructor(sources, gulp) {
-
     super(sources, gulp, (config, gulp) => {
-      return build(config, gulp);
+      let resource = config.resource;
+
+      let src = resource.getSrc();
+      let dest = resource.getTarget();
+      let name = resource.getDestName();
+
+      let {js, css, favicon} = config.buildOptions;
+
+      let buildOptions = Object.assign({}, config.buildOptions, {
+        js: js.getUrl(),
+        css: css.getUrl(),
+        favicon: favicon.getUrl()
+      });
+
+      return this.buildTemplate({
+        src,
+        dest,
+        name,
+        compileOptions: config.compileOptions,
+        buildOptions: buildOptions
+      });
     });
+  }
+
+  buildTemplate(options) {
+    let src = options.src;
+    let dest = options.dest;
+    let name = options.name;
+
+    let gulp = this.gulp;
+
+    let stream = gulp.src(src)
+      .pipe(plumber());
+
+    let extension = extname(src);
+    if (compilers.has(extension)) {
+      let compiler = compilers.get(extension);
+      let compileOptions = options.compileOptions;
+
+      stream = stream.pipe(compiler(compileOptions));
+    }
+
+    let buildOptions = normalizeOptions(options.buildOptions);
+    return stream.pipe(htmlreplace(buildOptions))
+      .pipe(rename(name))
+      .pipe(gulp.dest(dest));
   }
 }
